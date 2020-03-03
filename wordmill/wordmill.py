@@ -275,7 +275,7 @@ class AssemblySystem(object):
     def generate(
             cls,
             func,
-            *words: List[str],
+            *words: str,
             **kwargs
     ) -> AssemblySystem:
         """
@@ -302,7 +302,7 @@ class AssemblySystem(object):
             for inp in set(itertools.chain(*words))
         }
         func(sources, sinks, **kwargs)
-        return AssemblySystem.discover(sources.values())
+        return cls.discover(sources.values())
     
     def to_digraph(self) -> 'networkx.MultiDiGraph':
         """
