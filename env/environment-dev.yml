@@ -1,0 +1,9 @@
+name: wordmill-dev
+
+dependencies:
+  - python>=3.7
+  - networkx>=2.2
+
+  # For testing and documentation purposes
+  - pytest>=5.3
+  - sphinx>=1.8.5
