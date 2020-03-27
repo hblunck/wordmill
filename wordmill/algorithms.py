@@ -1,4 +1,4 @@
-from wordmill.wordmill import Node, Machine, Inventory, form_edge, split_word
+from wordmill.node_types import Node, Machine, Inventory, form_edge
 import math
 from typing import Dict
 
@@ -12,7 +12,7 @@ def form_linear_assembly(sources: Dict[str, Node], sinks: Dict[str, Node]):
 
     while len(inventories_to_supply) > 0:
         inv = inventories_to_supply.pop()
-        w_left, w_right = split_word(inv.word, 1)
+        w_left, w_right = Node.split_word(inv.word, 1)
         m = Machine(w_left, w_right)
         form_edge(m, inv)
         inv_left = Inventory(w_left)
@@ -38,7 +38,7 @@ def form_component_assembly(sources: Dict[str, Node], sinks: Dict[str, Node]):
         if inv.word in sources:
             form_edge(sources[inv.word], inv)
         else:
-            w_left, w_right = split_word(inv.word, math.floor(len(inv.word)/2.0))
+            w_left, w_right = Node.split_word(inv.word, math.floor(len(inv.word)/2.0))
             m = Machine(w_left, w_right)
             form_edge(m, inv)
             inv_left = Inventory(w_left)
@@ -65,7 +65,7 @@ def form_bio_inspired_assembly(sources: Dict[str, Node], sinks: Dict[str, Node])
             form_edge(sources[w], inv)
         else:
             for i in range(1, len(w)):
-                w_left, w_right = split_word(w, i)
+                w_left, w_right = Node.split_word(w, i)
                 if (w_left, w_right) in created_inventories:
                     m = created_inventories[(w_left, w_right)]
                 else:
@@ -96,7 +96,7 @@ def form_product_focussed_team_assembly(sources: Dict[str, Node], sinks: Dict[st
         inv = Inventory(w_out)
         form_edge(inv, sink)
         for i in range(1, len(w_out)):
-            w_left, w_right = split_word(w_out, i)
+            w_left, w_right = Node.split_word(w_out, i)
             m = Machine(w_left, w_right)
             form_edge(m, inv)
             inv_left = Inventory(w_left)
@@ -119,7 +119,7 @@ def form_product_focussed_team_assembly(sources: Dict[str, Node], sinks: Dict[st
                 form_edge(sources[w], inv)
             else:
                 for i in range(1, len(w)):
-                    w_left, w_right = split_word(w, i)
+                    w_left, w_right = Node.split_word(w, i)
                     if (w_left, w_right) in created_machines:
                         m = created_inventories[(w_left, w_right)]
                     else:
@@ -179,7 +179,7 @@ def form_late_product_differentiation(sources: Dict[str, Node], sinks: Dict[str,
         else:
             wst = get_longest_standard_product_in(w)
             if wst is None:
-                w_left, w_right = split_word(w, 1)
+                w_left, w_right = Node.split_word(w, 1)
                 m = Machine(w_left, w_right)
                 form_edge(m, inv)
                 inv_left = Inventory(w_left)

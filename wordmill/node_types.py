@@ -1,9 +1,10 @@
 from __future__ import annotations
 import itertools
+import sys
 from typing import List, Set, Type, Iterable, Optional, Tuple
 
 
-class Node(object):
+class Node:
     """
     Baseclass for all elements within a wordmill network. In particular
 
@@ -14,6 +15,10 @@ class Node(object):
 
     are derived from this class.
     """
+    # Create class variables that hold information about allowed classes for input and output nodes
+    allowed_input_node_class_names = set()
+    allowed_output_node_class_names = set()
+
     def __init__(self):
         """
         Constructor.
@@ -80,7 +85,27 @@ class Node(object):
 
         Args:
             other_node: Node to connect to.
+
+        Raises:
+            ValueError: In any of the following two cases:
+
+                * If `other_node` has no input word that matches the output word of this node.
+                * If `other_node` is not a :class:`Node` instance or not of the proper type to form
+                  a bipartite graph.
         """
+        if len(set(self.outputs) & set(other_node.inputs)) == 0:
+            raise ValueError('Source and sink have no common product to share')
+        # Use the class names specified in self.allowed_output_names to load classes from the
+        # current module. At least one of them has to be in `other_node`'s MRO
+        if not any([
+            isinstance(other_node, getattr(sys.modules[__name__], class_name))
+            for class_name in self.allowed_output_node_class_names
+        ]):
+            raise ValueError(
+                'other_node has to be be an instance of one of the following classes: {}'.format(
+                    self.allowed_output_node_class_names
+                )
+            )
         self._output_nodes.append(other_node)
 
     def form_inbound_edge(self, other_node: Node):
@@ -89,7 +114,27 @@ class Node(object):
 
         Args:
             other_node: Node to connect to.
+
+        Raises:
+            ValueError: In any of the following two cases:
+
+                * If `other_node` has no input word that matches the output word of this node.
+                * If `other_node` is not a :class:`Node` instance or not of the proper type to form
+                  a bipartite graph.
         """
+        if len(set(other_node.outputs) & set(self.inputs)) == 0:
+            raise ValueError('Source and sink have no common product to share')
+        # Use the class names specified in self.allowed_output_names to load classes from the
+        # current module. At least one of them has to be in `other_node`'s MRO
+        if not any([
+            isinstance(other_node, getattr(sys.modules[__name__], class_name))
+            for class_name in self.allowed_input_node_class_names
+        ]):
+            raise ValueError(
+                'other_node has to be be an instance of one of the following classes: {}'.format(
+                    self.allowed_input_node_class_names
+                )
+            )
         self._input_nodes.append(other_node)
 
     @property
@@ -119,12 +164,39 @@ class Node(object):
         # If all checks were passed, return True
         return True
 
+    @staticmethod
+    def split_word(word: str, pos: int) -> Tuple[str, str]:
+        """
+        Helper method to split a string at position `pos`, returning both substrings.
+        The length of the first substring will be `pos` characters.
+
+        Args:
+            word: Input word
+            pos: Splitting position
+
+        Returns:
+            tuple: Substrings.
+
+        Note:
+            In line with wordmill concepts, both substrings must be non-empty. Thus, `pos` must be
+            in the range `[1, len(word) - 1]`.
+
+        Raises:
+            AssertionError: If `pos` takes a value < 1 or equal or larger to the length of the
+            input `word`.
+        """
+        assert 1 <= pos <= len(word) - 1, 'Parameter pos out of valid range.'
+        return word[:pos], word[pos:]
+
 
 class Inventory(Node):
     """
     Node class that holds inventory of a specific word between procesing steps
     (machines) or between source and machines or machines and sinks.
     """
+    allowed_input_node_class_names = {'Source', 'Machine'}
+    allowed_output_node_class_names = {'Sink', 'Machine'}
+
     def __init__(self, word: str):
         """
         Constructor.
@@ -145,6 +217,9 @@ class Machine(Node):
     Output word is obtained by concatenating `left_word` and `right_word`
     in this order.
     """
+    allowed_input_node_class_names = {'Inventory'}
+    allowed_output_node_class_names = {'Inventory'}
+
     def __init__(self, left_word: str, right_word: str):
         """
         Constructor
@@ -159,6 +234,9 @@ class Machine(Node):
 
 
 class Source(Node):
+    allowed_input_node_class_names = set()
+    allowed_output_node_class_names = {'Inventory'}
+
     def __init__(self, word: str):
         """
         Constructor.
@@ -171,6 +249,9 @@ class Source(Node):
 
 
 class Sink(Node):
+    allowed_input_node_class_names = {'Inventory'}
+    allowed_output_node_class_names = set()
+
     def __init__(self, word: str):
         """
         Constructor
@@ -192,7 +273,7 @@ class Sink(Node):
         return self._inputs[0]
 
 
-class AssemblySystem(object):
+class AssemblySystem:
     """
     An AssemblySystem instance is a directed graph of :class:`Node` instances
     that transforms inputs (provided by :class:`Source` instances) into a set
@@ -345,11 +426,16 @@ class AssemblySystem(object):
         return s
 
 
-def form_edge(source, sink):
-    assert len(set(source.outputs) & set(sink.inputs)) > 0, 'Source and sink have no common product to share'
+def form_edge(source: Node, sink: Node):
+    """
+    Helper function that registers an edge with both the the source and sink nodes.
+    Edge validation (that source and sink share an exchangeable product and are of correct type)
+    is checked by the called functions :meth:`Node.form_outbound_edge` and :meth:`form_inbound_edge`
+    respectively.
+
+    Args:
+        source: Origin of edge.
+        sink: Destination of edge.
+    """
     source.form_outbound_edge(sink)
     sink.form_inbound_edge(source)
-
-
-def split_word(word: str, pos: int) -> Tuple[str, str]:
-    return word[:pos], word[pos:]

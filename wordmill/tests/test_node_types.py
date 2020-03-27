@@ -3,7 +3,7 @@ Function tests the `wordmill.wordmill` module of base classes.
 """
 import pytest
 
-from wordmill.wordmill import Node, Source, Sink, Machine, Inventory
+from wordmill import Node, Source, Sink, Machine, Inventory, form_edge
 
 
 grid_test_Node_properties = [
@@ -92,13 +92,13 @@ grid_test_Node_fully_connected = [
     [
         Source('a'),
         [
-            ('out', Sink('a'))
+            ('out', Inventory('a'))
         ]
     ],
     [
         Sink('a'),
         [
-            ('in', Source('a'))
+            ('in', Inventory('a'))
         ]
     ],
     [
@@ -111,9 +111,9 @@ grid_test_Node_fully_connected = [
     [
         Machine('a', 'b'),
         [
-            ('in', Source('a')),
-            ('out', Sink('ab')),
-            ('in', Source('b')),
+            ('in', Inventory('a')),
+            ('out', Inventory('ab')),
+            ('in', Inventory('b')),
         ]
     ]
 ]
@@ -138,3 +138,71 @@ def test_Node_fully_connected(n: Node, neighbors):
         # Node should be fully connected if this was the last neighbor to
         # add. Predicate should return False otherwise.
         assert n.fully_connected == (i == len(neighbors) - 1)
+
+
+grid_test_Node_split_word = [
+    ('Test', 1, 'T', 'est'),
+    ('Test', 2, 'Te', 'st'),
+    ('Test', 3, 'Tes', 't'),
+]
+
+
+@pytest.mark.parametrize(
+    'input_word, split_pos, left_output, right_output',
+    grid_test_Node_split_word
+)
+def test_Node_split_word(input_word, split_pos, left_output, right_output):
+    """
+    Test checks the :meth:`Node.split_word` helper function.
+    """
+    # Test that using the split position results in the expected split
+    assert Node.split_word(input_word, split_pos) == (left_output, right_output)
+    # Test that assigning an invalid value to pos throws an error
+    with pytest.raises(AssertionError, match='Parameter pos out of valid range.'):
+        Node.split_word(input_word, 0)
+    with pytest.raises(AssertionError, match='Parameter pos out of valid range.'):
+        Node.split_word(input_word, len(input_word))
+
+
+grid_test_Node_form_edges = [
+    # These test cases should be okay
+    (Source('a'), Inventory('a'), 'success'),
+    (Inventory('a'), Machine('a', 'b'), 'success'),
+    (Machine('a', 'b'), Inventory('ab'), 'success'),
+    (Inventory('a'), Sink('a'), 'success'),
+    # Here we should have problems identifying shared products
+    (Source('a'), Inventory('b'), 'no_shared_product'),
+    (Inventory('a'), Machine('b', 'c'), 'no_shared_product'),
+    (Machine('a', 'b'), Inventory('a'), 'no_shared_product'),
+    (Inventory('a'), Sink('b'), 'no_shared_product'),
+    # Here we should have problems because we should not be able connect nodes of these types
+    # directly.
+    (Source('a'), Sink('a'), 'wrong_class_type'),
+    (Source('a'), Machine('a', 'b'), 'wrong_class_type'),
+    (Inventory('a'), Inventory('a'), 'wrong_class_type'),
+    (Machine('a', 'b'), Machine('ab', 'c'), 'wrong_class_type'),
+    (Machine('a', 'b'), Sink('ab'), 'wrong_class_type')
+]
+
+
+@pytest.mark.parametrize(
+    'source, sink, expected_result',
+    grid_test_Node_form_edges
+)
+def test_Node_form_edges(source, sink, expected_result):
+    """
+    Function test both the :meth:`Node.form_inbound_edge` and :meth:`Node.form_outbound_edge`
+    methods.
+    """
+    if expected_result == 'success':
+        source.form_outbound_edge(sink)
+        sink.form_inbound_edge(source)
+    else:
+        if expected_result == 'no_shared_product':
+            match = 'Source and sink have no common product to share'
+        elif expected_result == 'wrong_class_type':
+            match = 'other_node has to be be an instance of one of the following classes: *'
+        with pytest.raises(ValueError, match=match):
+            source.form_outbound_edge(sink)
+        with pytest.raises(ValueError, match=match):
+            sink.form_inbound_edge(source)

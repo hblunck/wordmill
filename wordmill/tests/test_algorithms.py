@@ -1,7 +1,7 @@
 import pytest
 import networkx as nx
 
-from wordmill.wordmill import AssemblySystem
+from wordmill import AssemblySystem
 from wordmill.algorithms import form_linear_assembly
 
 grid_test_algorithm_isomorphism = [
