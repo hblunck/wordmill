@@ -1,7 +1,7 @@
 from __future__ import annotations
 import itertools
 import sys
-from typing import List, Set, Type, Iterable, Optional, Tuple
+from typing import List, Set, Type, Iterable, Optional, Tuple, Dict
 
 
 class Node:
@@ -414,10 +414,14 @@ class AssemblySystem:
             Sink: 'trapezium',
             Source: 'invtrapezium'
         }
-        node_dict = {str(i): n for i, n in enumerate(self._nodes)}
+        node_dict: Dict[str, Node] = {str(i): n for i, n in enumerate(self._nodes)}
         s = 'digraph wordmill {\n'
         for key, n in node_dict.items():
-            s += '\t"{}" [shape={}, label="{}"];\n'.format(key, class_to_shape[n.__class__], n.word)
+            s += '\t"{}" [shape={}, label="{}"];\n'.format(
+                key,
+                class_to_shape[n.__class__],
+                n.word if not isinstance(n, Machine) else '+'.join(n.inputs)
+            )
         invert_node_dict = {v: k for k, v in node_dict.items()}
         for key, source in node_dict.items():
             for sink in source.output_nodes:
